@@ -134,6 +134,44 @@
             font-size: 0.85rem;
             color: #374151;
         }
+
+        /* --- [新增] 圖例收合功能 --- */
+        .legend-header {
+            font-weight: 700; 
+            margin-bottom: 10px; 
+            font-size: 0.95rem;
+            position: relative;
+            padding-right: 30px; /* 留空間給按鈕 */
+            cursor: pointer; /* 讓整個標題都可以點 */
+            user-select: none;
+        }
+
+        .legend-toggle {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #999;
+            padding: 0 5px;
+        }
+        .legend-header:hover .legend-toggle {
+            color: #333;
+        }
+        
+        /* [新增] 收合狀態下的樣式 */
+        .legend.collapsed .legend-item,
+        .legend.collapsed .legend-tip {
+            display: none; /* 隱藏圖例內容 */
+        }
+
+        /* [新增] 調整手機上的圖例最大寬度，避免佔滿 */
+        @media (max-width: 768px) {
+            .legend {
+                max-width: 250px;
+            }
+        }
     </style>
     <!-- 載入 Noto Sans TC 字體 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -331,8 +369,22 @@
         const legend = L.control({ position: 'bottomright' });
         legend.onAdd = function (map) {
             const div = L.DomUtil.create('div', 'legend');
+            
+            // [新增] 判斷是否為手機，預設收合
+            const isMobile = window.innerWidth <= 768;
+            let isCollapsed = isMobile; // 手機預設收合
+
+            if (isCollapsed) {
+                div.classList.add('collapsed');
+            }
+
             div.innerHTML = `
-                <div style="font-weight: 700; margin-bottom: 10px; font-size: 0.95rem;">圖例說明</div>
+                <!-- [修改] 加上 header 容器和 toggle 按鈕 -->
+                <div class="legend-header">
+                    <span>圖例說明</span>
+                    <span id="legend-toggle" class="legend-toggle">${isCollapsed ? '＋' : '－'}</span>
+                </div>
+                
                 <div class="legend-item">
                     <div class="legend-icon" style="font-size: 0;">
                         <img src="https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png" alt="地圖標示" style="height: 24px; width: auto;">
@@ -345,10 +397,31 @@
                      <!-- *** 修改：更新標語 *** -->
                     <div class="legend-text"><strong>折扣最大</strong><br/>5折、半價或免費 (含條件)</div>
                 </div>
-                <div style="font-size: 0.75rem; color: #666; margin-top: 10px; border-top: 1px solid #ddd; padding-top: 8px;">
+                <!-- [修改] 加上 class 'legend-tip' 方便控制顯隱 -->
+                <div class="legend-tip" style="font-size: 0.75rem; color: #666; margin-top: 10px; border-top: 1px solid #ddd; padding-top: 8px;">
                     💡 提示：優惠資訊以店家當期公告為準，建議訂位前再次確認。
                 </div>
             `;
+            
+            // [新增] 阻止地圖事件傳遞 (點擊圖例時，不會觸發地圖)
+            L.DomEvent.disableClickPropagation(div);
+            L.DomEvent.disableScrollPropagation(div);
+            
+            // [新增] 點擊標題區域來收合/展開
+            const header = div.querySelector('.legend-header');
+            L.DomEvent.on(header, 'click', function() {
+                isCollapsed = !isCollapsed; // 切換狀態
+                const toggleBtn = div.querySelector('#legend-toggle');
+                
+                if (isCollapsed) {
+                    div.classList.add('collapsed');
+                    toggleBtn.innerHTML = '＋';
+                } else {
+                    div.classList.remove('collapsed');
+                    toggleBtn.innerHTML = '－';
+                }
+            });
+            
             return div;
         };
         legend.addTo(map);
@@ -363,10 +436,10 @@
             }
             
             popupContent += `<ul>
-                              <li class="${location.isTopDeal ? 'top-offer' : 'restaurant-offer'}"><strong>折扣：</strong>${location.discount}</li>
-                              <li class="restaurant-offer">${location.offer}</li>
-                            </ul>
-                            <p style="font-size: 0.8rem; color: #777; margin-top: 10px; text-align: right;">*優惠資訊以店家當期公告為準，建議訂位前再次確認。</p>`;
+                                <li class="${location.isTopDeal ? 'top-offer' : 'restaurant-offer'}"><strong>折扣：</strong>${location.discount}</li>
+                                <li class="restaurant-offer">${location.offer}</li>
+                             </ul>
+                             <p style="font-size: 0.8rem; color: #777; margin-top: 10px; text-align: right;">*優惠資訊以店家當期公告為準，建議訂位前再次確認。</p>`;
 
             L.marker(location.coords)
                 .addTo(map)
@@ -377,8 +450,3 @@
 </body>
 
 </html>
-
-
-
-
-
